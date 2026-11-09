@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chill & Spill Loungen</title>
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        chill: {
+                            bg: '#0b0f19',
+                            card: 'rgba(21, 29, 46, 0.7)',
+                            border: 'rgba(255, 255, 255, 0.1)',
+                            pink: '#ec4899',
+                            purple: '#a855f7',
+                            cyan: '#06b6d4',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #070a12 0%, #0f172a 50%, #1e1b4b 100%);
+            min-height: 100vh;
+            color: #f1f5f9;
+            overflow-x: hidden;
+        }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-tab {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+
+        .glass-tab:hover {
+            background: rgba(168, 85, 247, 0.15);
+            border-color: rgba(168, 85, 247, 0.4);
+        }
+
+        .glass-tab.active {
+            background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(236, 72, 153, 0.3));
+            border-color: rgba(236, 72, 153, 0.6);
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+            color: #ffffff;
+        }
+
+        /* Memory Card Flip Animation */
+        .memory-card {
+            perspective: 1000px;
+        }
+
+        .memory-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+
+        .memory-card.flipped .memory-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .memory-card-front, .memory-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 1rem;
+        }
+
+        .memory-card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Bubble Pop Effects */
+        .bubble {
+            transition: transform 0.15s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+        }
+        .bubble:active {
+            transform: scale(0.85);
+        }
+        .bubble.popped {
+            transform: scale(0);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="relative flex flex-col min-h-screen items-center p-4 sm:p-6 select-none">
+
+    <!-- Particle Background Canvas -->
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Header -->
+    <header class="relative z-10 w-full max-w-4xl text-center my-4">
+        <h1 class="text-3xl sm:text-5xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400">
+            Chill & Spill Loungen 🎮✨
+        </h1>
+        <p class="text-slate-400 text-sm sm:text-base mt-2">
+            Ingen stress, ingen tidsfrister. Bare slapp av og kos deg!
+        </p>
+    </header>
+
+    <!-- Sound Control Bar -->
+    <section class="relative z-10 w-full max-w-4xl glass-panel rounded-2xl p-4 mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-2">
+            <span class="text-xl">🎧</span>
+            <span class="text-sm font-medium text-purple-200">Atmosfære-lyder:</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-3">
+            <button id="btn-sound-rain" class="glass-tab px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5">
+                🌧️ Regn
+            </button>
+            <button id="btn-sound-waves" class="glass-tab px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5">
+                🌊 Bølger
+            </button>
+            <button id="btn-sound-synth" class="glass-tab px-3 py-1.5 rounded-xl text-xs font-medium flex items-center gap-1.5">
+                🎶 Zen Synth
+            </button>
+            <div class="flex items-center gap-2 ml-2 bg-slate-900/50 px-3 py-1.5 rounded-xl border border-white/5">
+                <span class="text-xs text-slate-400">🔊</span>
+                <input id="volume-slider" type="range" min="0" max="1" step="0.01" value="0.4" 
+                       class="w-20 sm:w-28 accent-purple-400 cursor-pointer h-1.5 bg-slate-700 rounded-lg appearance-none">
+            </div>
+        </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="relative z-10 w-full max-w-4xl grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
+        <button class="tab-btn glass-tab active py-3 px-4 rounded-xl font-medium text-sm text-center flex items-center justify-center gap-2" data-target="tab-bubbles">
+            🫧 Bobleplast
+        </button>
+        <button class="tab-btn glass-tab py-3 px-4 rounded-xl font-medium text-sm text-center flex items-center justify-center gap-2" data-target="tab-canvas">
+            🎨 Zen-Tegning
+        </button>
+        <button class="tab-btn glass-tab py-3 px-4 rounded-xl font-medium text-sm text-center flex items-center justify-center gap-2" data-target="tab-memory">
+            🃏 Hukommelse
+        </button>
+        <button class="tab-btn glass-tab py-3 px-4 rounded-xl font-medium text-sm text-center flex items-center justify-center gap-2" data-target="tab-catcher">
+            ⭐ Stjernefanger
+        </button>
+    </nav>
+
+    <!-- Main Content Panels -->
+    <main class="relative z-10 w-full max-w-4xl flex-1 mb-8">
+
+        <!-- GAME 1: BUBBLE WRAP POPPER -->
+        <div id="tab-bubbles" class="game-panel glass-panel rounded-3xl p-6 sm:p-8">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-xl font-bold text-purple-200">Bobleplast Krok</h2>
+                    <p class="text-xs sm:text-sm text-slate-400">Sprekk boblene for deilige klikklyder!</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="text-sm font-semibold text-pink-400">Poppet: <span id="bubble-count">0</span></span>
+                    <button id="btn-reset-bubbles" class="glass-tab px-4 py-2 rounded-xl text-xs font-semibold text-purple-200">
+                        Fyll På Nytt 🔄
+                    </button>
+                </div>
+            </div>
+            <!-- Bubble Grid -->
+            <div id="bubble-grid" class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-3 sm:gap-4 justify-items-center py-4 max-h-[450px] overflow-y-auto">
+                <!-- Javascript will populate bubbles -->
+            </div>
+        </div>
+
+        <!-- GAME 2: ZEN CANVAS SANDBOX -->
+        <div id="tab-canvas" class="game-panel glass-panel rounded-3xl p-6 sm:p-8 hidden">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-purple-200">Zen Tegnekrok</h2>
+                    <p class="text-xs sm:text-sm text-slate-400">Tegn roende lysmønstre i rommet.</p>
+                </div>
+                <!-- Canvas Tools -->
+                <div class="flex flex-wrap items-center gap-3">
+                    <div class="flex items-center gap-1.5 bg-slate-900/60 p-1.5 rounded-xl border border-white/10">
+                        <button class="color-btn w-6 h-6 rounded-full bg-cyan-400 ring-2 ring-white" data-color="#22d3ee"></button>
+                        <button class="color-btn w-6 h-6 rounded-full bg-pink-400" data-color="#f472b6"></button>
+                        <button class="color-btn w-6 h-6 rounded-full bg-purple-400" data-color="#c084fc"></button>
+                        <button class="color-btn w-6 h-6 rounded-full bg-amber-300" data-color="#fde047"></button>
+                        <button class="color-btn w-6 h-6 rounded-full bg-emerald-400" data-color="#34d399"></button>
+                    </div>
+                    <button id="btn-clear-canvas" class="glass-tab px-4 py-2 rounded-xl text-xs font-semibold text-purple-200">
+                        Visk Ut 🧹
+                    </button>
+                </div>
+            </div>
+            <!-- Drawing Canvas Container -->
+            <div class="relative w-full h-[360px] sm:h-[400px] rounded-2xl overflow-hidden border border-white/10 bg-slate-950/80 shadow-inner">
+                <canvas id="zen-draw-canvas" class="w-full h-full cursor-crosshair"></canvas>
+            </div>
+        </div>
+
+        <!-- GAME 3: COZY MEMORY MATCH -->
+        <div id="tab-memory" class="game-panel glass-panel rounded-3xl p-6 sm:p-8 hidden">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
+                <div>
+                    <h2 class="text-xl font-bold text-purple-200">Kose-Hukommelse</h2>
+                    <p class="text-xs sm:text-sm text-slate-400">Finn alle de matchende parene!</p>
+                </div>
+                <div class="flex items-center gap-6">
+                    <div class="text-sm font-semibold text-cyan-400">Trekk: <span id="memory-moves">0</span></div>
+                    <button id="btn-reset-memory" class="glass-tab px-4 py-2 rounded-xl text-xs font-semibold text-purple-200">
+                        Nytt Spill 🔀
+                    </button>
+                </div>
+            </div>
+            <!-- Memory Cards Grid -->
+            <div id="memory-grid" class="grid grid-cols-4 gap-3 sm:gap-4 max-w-lg mx-auto h-[360px] sm:h-[400px]">
+                <!-- Javascript populates 16 cards -->
+            </div>
+        </div>
+
+        <!-- GAME 4: STAR CATCHER -->
+        <div id="tab-catcher" class="game-panel glass-panel rounded-3xl p-6 sm:p-8 hidden">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4 mb-4">
+                <div>
+                    <h2 class="text-xl font-bold text-purple-200">Stjernefanger</h2>
+                    <p class="text-xs sm:text-sm text-slate-400">Styr skyen med musen/pilene og fang dalende stjerner!</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="text-sm font-semibold text-amber-300">Stjerner: <span id="catcher-score">0</span></span>
+                    <button id="btn-restart-catcher" class="glass-tab px-4 py-2 rounded-xl text-xs font-semibold text-purple-200">
+                        Start På Nytt 🔄
+                    </button>
+                </div>
+            </div>
+            <!-- Game Canvas Container -->
+            <div class="relative w-full h-[340px] sm:h-[380px] rounded-2xl overflow-hidden border border-white/10 bg-slate-950/80 shadow-inner">
+                <canvas id="catcher-canvas" class="w-full h-full"></canvas>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="relative z-10 my-2 text-center text-xs text-slate-500">
+        100% Ren Klient-side HTML • Ingen Node.js, bare ren avslapning.
+    </footer>
+
+    <!-- MAIN JAVASCRIPT LOGIC -->
+    <script>
+        // ==========================================
+        // 1. SOUND SYSTEM (Pure Web Audio API)
+        // ==========================================
+        let audioCtx = null;
+        let mainGain = null;
+        const activeSounds = { rain: null, waves: null, synth: null };
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+                mainGain = audioCtx.createGain();
+                mainGain.gain.value = parseFloat(document.getElementById('volume-slider').value);
+                mainGain.connect(audioCtx.destination);
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        document.getElementById('volume-slider').addEventListener('input', (e) => {
+            if (mainGain) {
+                mainGain.gain.setValueAtTime(parseFloat(e.target.value), audioCtx.currentTime);
+            }
+        });
+
+        // Pleasant Synth Tone Generator for Clicks/Pops/Catches
+        function playTone(freq = 440, type = 'sine', duration = 0.15, vol = 0.2) {
+            try {
+                initAudio();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+
+                osc.connect(gain);
+                gain.connect(mainGain);
+
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        // Noise buffer helper for ambient sound
+        function createNoiseBuffer() {
+            const bufferSize = audioCtx.sampleRate * 2;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const output = buffer.getChannelData(0);
+            let lastOut = 0.0;
+            for (let i = 0; i < bufferSize; i++) {
+                const white = Math.random() * 2 - 1;
+                output[i] = (lastOut + (0.02 * white)) / 1.02;
+                lastOut = output[i];
+                output[i] *= 3.5;
+            }
+            return buffer;
+        }
+
+        // Rain Toggle
+        document.getElementById('btn-sound-rain').addEventListener('click', function() {
+            initAudio();
+            if (activeSounds.rain) {
+                activeSounds.rain.stop();
+                activeSounds.rain = null;
+                this.classList.remove('active');
+            } else {
+                const src = audioCtx.createBufferSource();
+                src.buffer = createNoiseBuffer();
+                src.loop = true;
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 800;
+                const g = audioCtx.createGain();
+                g.gain.value = 0.3;
+                src.connect(filter);
+                filter.connect(g);
+                g.connect(mainGain);
+                src.start();
+                activeSounds.rain = src;
+                this.classList.add('active');
+            }
+        });
+
+        // Waves Toggle
+        document.getElementById('btn-sound-waves').addEventListener('click', function() {
+            initAudio();
+            if (activeSounds.waves) {
+                activeSounds.waves.src.stop();
+                activeSounds.waves.lfo.stop();
+                activeSounds.waves = null;
+                this.classList.remove('active');
+            } else {
+                const src = audioCtx.createBufferSource();
+                src.buffer = createNoiseBuffer();
+                src.loop = true;
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 350;
+                
+                const lfo = audioCtx.createOscillator();
+                lfo.frequency.value = 0.12;
+                const lfoGain = audioCtx.createGain();
+                lfoGain.gain.value = 300;
+                lfo.connect(lfoGain);
+                lfoGain.connect(filter.frequency);
+
+                const g = audioCtx.createGain();
+                g.gain.value = 0.5;
+
+                src.connect(filter);
+                filter.connect(g);
+                g.connect(mainGain);
+
+                src.start();
+                lfo.start();
+                activeSounds.waves = { src, lfo };
+                this.classList.add('active');
+            }
+        });
+
+        // Zen Synth Ambient Chords Toggle
+        document.getElementById('btn-sound-synth').addEventListener('click', function() {
+            initAudio();
+            if (activeSounds.synth) {
+                activeSounds.synth.forEach(o => o.stop());
+                activeSounds.synth = null;
+                this.classList.remove('active');
+            } else {
+                const freqs = [174.61, 220.00, 261.63, 329.63, 392.00]; // F major 7 chord
+                const oscs = [];
+                const g = audioCtx.createGain();
+                g.gain.value = 0.1;
+
+                freqs.forEach(f => {
+                    const osc = audioCtx.createOscillator();
+                    osc.type = 'sine';
+                    osc.frequency.value = f;
+                    osc.detune.value = (Math.random() - 0.5) * 10;
+                    osc.connect(g);
+                    osc.start();
+                    oscs.push(osc);
+                });
+
+                g.connect(mainGain);
+                activeSounds.synth = oscs;
+                this.classList.add('active');
+            }
+        });
+
+
+        // ==========================================
+        // 2. TAB SWITCHING LOGIC
+        // ==========================================
+        const tabBtns = document.querySelectorAll('.tab-btn');
+        const gamePanels = document.querySelectorAll('.game-panel');
+
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabBtns.forEach(b => b.classList.remove('active'));
+                gamePanels.forEach(p => p.classList.add('hidden'));
+
+                btn.classList.add('active');
+                const targetId = btn.getAttribute('data-target');
+                document.getElementById(targetId).classList.remove('hidden');
+
+                // Resize canvases when tab becomes visible
+                if (targetId === 'tab-canvas') initZenCanvas();
+                if (targetId === 'tab-catcher') initCatcherGame();
+            });
+        });
+
+
+        // ==========================================
+        // 3. BACKGROUND PARTICLES
+        // ==========================================
+        const bgCanvas = document.getElementById('bg-canvas');
+        const bgCtx = bgCanvas.getContext('2d');
+        let bgParticles = [];
+
+        function resizeBg() {
+            bgCanvas.width = window.innerWidth;
+            bgCanvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeBg);
+        resizeBg();
+
+        for (let i = 0; i < 50; i++) {
+            bgParticles.push({
+                x: Math.random() * bgCanvas.width,
+                y: Math.random() * bgCanvas.height,
+                radius: Math.random() * 2 + 1,
+                vx: (Math.random() - 0.5) * 0.3,
+                vy: -Math.random() * 0.4 - 0.1,
+                alpha: Math.random() * 0.5 + 0.1,
+                color: ['#a855f7', '#ec4899', '#06b6d4', '#38bdf8'][Math.floor(Math.random() * 4)]
+            });
+        }
+
+        function drawBg() {
+            bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+            bgParticles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.y < 0) p.y = bgCanvas.height;
+                if (p.x < 0 || p.x > bgCanvas.width) p.x = Math.random() * bgCanvas.width;
+
+                bgCtx.beginPath();
+                bgCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                bgCtx.fillStyle = p.color;
+                bgCtx.globalAlpha = p.alpha;
+                bgCtx.shadowBlur = 10;
+                bgCtx.shadowColor = p.color;
+                bgCtx.fill();
+                bgCtx.globalAlpha = 1.0;
+                bgCtx.shadowBlur = 0;
+            });
+            requestAnimationFrame(drawBg);
+        }
+        drawBg();
+
+
+        // ==========================================
+        // 4. BUBBLE WRAP GAME
+        // ==========================================
+        const bubbleGrid = document.getElementById('bubble-grid');
+        const bubbleCountEl = document.getElementById('bubble-count');
+        let totalPopped = 0;
+
+        function createBubbles() {
+            bubbleGrid.innerHTML = '';
+            const colors = [
+                'from-pink-500/40 to-purple-500/40 border-pink-400/50',
+                'from-cyan-500/40 to-blue-500/40 border-cyan-400/50',
+                'from-purple-500/40 to-indigo-500/40 border-purple-400/50',
+                'from-amber-400/40 to-rose-400/40 border-amber-300/50'
+            ];
+
+            for (let i = 0; i < 40; i++) {
+                const b = document.createElement('div');
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                b.className = `bubble w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-br ${randomColor} border shadow-lg cursor-pointer flex items-center justify-center backdrop-blur-sm`;
+                
+                // Add inner shine detail
+                b.innerHTML = `<div class="w-3 h-3 rounded-full bg-white/30 -mt-5 -ml-5"></div>`;
+
+                b.addEventListener('pointerdown', () => {
+                    if (!b.classList.contains('popped')) {
+                        b.classList.add('popped');
+                        totalPopped++;
+                        bubbleCountEl.innerText = totalPopped;
+                        
+                        // Play popping synth sound with dynamic pitch
+                        const pitch = 300 + Math.random() * 500;
+                        playTone(pitch, 'triangle', 0.08, 0.25);
+                    }
+                });
+
+                bubbleGrid.appendChild(b);
+            }
+        }
+
+        document.getElementById('btn-reset-bubbles').addEventListener('click', () => {
+            playTone(600, 'sine', 0.1, 0.2);
+            createBubbles();
+        });
+        createBubbles();
+
+
+        // ==========================================
+        // 5. ZEN CANVAS DRAWING
+        // ==========================================
+        const zenCanvas = document.getElementById('zen-draw-canvas');
+        const zenCtx = zenCanvas.getContext('2d');
+        let isDrawing = false;
+        let strokeColor = '#22d3ee';
+
+        function initZenCanvas() {
+            const rect = zenCanvas.parentElement.getBoundingClientRect();
+            zenCanvas.width = rect.width;
+            zenCanvas.height = rect.height;
+            zenCtx.lineCap = 'round';
+            zenCtx.lineJoin = 'round';
+            zenCtx.lineWidth = 4;
+        }
+
+        function getPos(e) {
+            const rect = zenCanvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function startDraw(e) {
+            isDrawing = true;
+            const pos = getPos(e);
+            zenCtx.beginPath();
+            zenCtx.moveTo(pos.x, pos.y);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const pos = getPos(e);
+            zenCtx.strokeStyle = strokeColor;
+            zenCtx.shadowBlur = 12;
+            zenCtx.shadowColor = strokeColor;
+            zenCtx.lineTo(pos.x, pos.y);
+            zenCtx.stroke();
+
+            // Soft tone effect while drawing
+            if (Math.random() < 0.1) {
+                playTone(200 + Math.random() * 300, 'sine', 0.2, 0.03);
+            }
+        }
+
+        function stopDraw() {
+            isDrawing = false;
+        }
+
+        zenCanvas.addEventListener('mousedown', startDraw);
+        zenCanvas.addEventListener('mousemove', draw);
+        window.addEventListener('mouseup', stopDraw);
+
+        zenCanvas.addEventListener('touchstart', startDraw);
+        zenCanvas.addEventListener('touchmove', draw);
+        window.addEventListener('touchend', stopDraw);
+
+        document.querySelectorAll('.color-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('ring-2', 'ring-white'));
+                btn.classList.add('ring-2', 'ring-white');
+                strokeColor = btn.getAttribute('data-color');
+            });
+        });
+
+        document.getElementById('btn-clear-canvas').addEventListener('click', () => {
+            zenCtx.clearRect(0, 0, zenCanvas.width, zenCanvas.height);
+            playTone(300, 'sine', 0.15, 0.2);
+        });
+
+
+        // ==========================================
+        // 6. COZY MEMORY MATCH GAME
+        // ==========================================
+        const memoryGrid = document.getElementById('memory-grid');
+        const memoryMovesEl = document.getElementById('memory-moves');
+        const icons = ['🐱', '🌙', '⭐', '☕', '🪐', '🔮', '🌿', '🎵'];
+        let cards = [];
+        let flippedCards = [];
+        let moves = 0;
+        let isLocking = false;
+
+        function initMemoryGame() {
+            memoryGrid.innerHTML = '';
+            cards = [...icons, ...icons].sort(() => Math.random() - 0.5);
+            moves = 0;
+            memoryMovesEl.innerText = moves;
+            flippedCards = [];
+            isLocking = false;
+
+            cards.forEach((icon, index) => {
+                const card = document.createElement('div');
+                card.className = 'memory-card w-full h-full cursor-pointer';
+                card.innerHTML = `
+                    <div class="memory-card-inner">
+                        <div class="memory-card-front glass-panel border border-white/10 text-2xl text-purple-300">❓</div>
+                        <div class="memory-card-back bg-gradient-to-br from-purple-900/80 to-slate-900/90 border border-purple-400/40 text-3xl sm:text-4xl shadow-lg">${icon}</div>
+                    </div>
+                `;
+
+                card.addEventListener('click', () => {
+                    if (isLocking || card.classList.contains('flipped') || flippedCards.includes(card)) return;
+
+                    card.classList.add('flipped');
+                    playTone(400 + flippedCards.length * 200, 'sine', 0.1, 0.2);
+                    flippedCards.push({ card, icon });
+
+                    if (flippedCards.length === 2) {
+                        moves++;
+                        memoryMovesEl.innerText = moves;
+                        checkMemoryMatch();
+                    }
+                });
+
+                memoryGrid.appendChild(card);
+            });
+        }
+
+        function checkMemoryMatch() {
+            isLocking = true;
+            const [c1, c2] = flippedCards;
+
+            if (c1.icon === c2.icon) {
+                // Match!
+                playTone(700, 'triangle', 0.2, 0.3);
+                flippedCards = [];
+                isLocking = false;
+            } else {
+                // No match
+                setTimeout(() => {
+                    c1.card.classList.remove('flipped');
+                    c2.card.classList.remove('flipped');
+                    flippedCards = [];
+                    isLocking = false;
+                }, 900);
+            }
+        }
+
+        document.getElementById('btn-reset-memory').addEventListener('click', initMemoryGame);
+        initMemoryGame();
+
+
+        // ==========================================
+        // 7. STAR CATCHER GAME
+        // ==========================================
+        const catcherCanvas = document.getElementById('catcher-canvas');
+        const catcherCtx = catcherCanvas.getContext('2d');
+        const catcherScoreEl = document.getElementById('catcher-score');
+
+        let catcherScore = 0;
+        let playerX = 150;
+        let stars = [];
+        let catcherAnimId = null;
+
+        function initCatcherGame() {
+            const rect = catcherCanvas.parentElement.getBoundingClientRect();
+            catcherCanvas.width = rect.width;
+            catcherCanvas.height = rect.height;
+            playerX = catcherCanvas.width / 2;
+            stars = [];
+            catcherScore = 0;
+            catcherScoreEl.innerText = catcherScore;
+
+            if (catcherAnimId) cancelAnimationFrame(catcherAnimId);
+            updateCatcherGame();
+        }
+
+        function updateCatcherGame() {
+            catcherCtx.clearRect(0, 0, catcherCanvas.width, catcherCanvas.height);
+
+            // Spawn falling stars
+            if (Math.random() < 0.04) {
+                stars.push({
+                    x: Math.random() * (catcherCanvas.width - 20) + 10,
+                    y: -10,
+                    speed: Math.random() * 1.5 + 1,
+                    size: Math.random() * 6 + 10,
+                    note: [261.63, 293.66, 329.63, 392.00, 440.00, 523.25][Math.floor(Math.random() * 6)]
+                });
+            }
+
+            // Draw player cloud/basket
+            const playerY = catcherCanvas.height - 35;
+            catcherCtx.fillStyle = '#a855f7';
+            catcherCtx.shadowBlur = 15;
+            catcherCtx.shadowColor = '#ec4899';
+            catcherCtx.beginPath();
+            catcherCtx.roundRect(playerX - 35, playerY, 70, 16, 8);
+            catcherCtx.fill();
+            catcherCtx.shadowBlur = 0;
+
+            // Draw and update stars
+            for (let i = stars.length - 1; i >= 0; i--) {
+                const s = stars[i];
+                s.y += s.speed;
+
+                // Draw Star Shape / Circle
+                catcherCtx.fillStyle = '#fde047';
+                catcherCtx.shadowBlur = 10;
+                catcherCtx.shadowColor = '#fde047';
+                catcherCtx.beginPath();
+                catcherCtx.arc(s.x, s.y, s.size / 2, 0, Math.PI * 2);
+                catcherCtx.fill();
+                catcherCtx.shadowBlur = 0;
+
+                // Catch detection
+                if (s.y >= playerY - 10 && s.y <= playerY + 20 && Math.abs(s.x - playerX) < 45) {
+                    catcherScore++;
+                    catcherScoreEl.innerText = catcherScore;
+                    playTone(s.note, 'sine', 0.25, 0.25);
+                    stars.splice(i, 1);
+                    continue;
+                }
+
+                // Remove out-of-bounds stars
+                if (s.y > catcherCanvas.height + 20) {
+                    stars.splice(i, 1);
+                }
+            }
+
+            catcherAnimId = requestAnimationFrame(updateCatcherGame);
+        }
+
+        // Controls for Star Catcher
+        function movePlayer(e) {
+            const rect = catcherCanvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            playerX = clientX - rect.left;
+        }
+
+        catcherCanvas.addEventListener('mousemove', movePlayer);
+        catcherCanvas.addEventListener('touchmove', movePlayer);
+
+        document.getElementById('btn-restart-catcher').addEventListener('click', initCatcherGame);
+
+        // Initial setup for first active tab
+        window.addEventListener('load', () => {
+            initZenCanvas();
+        });
+    </script>
+</body>
+</html>
